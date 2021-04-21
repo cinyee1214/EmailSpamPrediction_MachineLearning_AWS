@@ -1,0 +1,115 @@
+Parameters:
+  EndpointName:
+    Type: String
+    Description: Enter the endpoint of Sagemaker model.
+Resources:
+  SESRule:
+    Type: 'AWS::SES::ReceiptRule'
+    DependsOn:
+      - SampleBucketPolicy
+    Properties:
+      Rule:
+        Actions:
+          - S3Action:
+              BucketName: !Ref S3Bucket
+      RuleSetName: new-rule-set
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 8c9e7f90-83b6-43c5-a312-5774f02f2d22
+  SESRuleSet:
+    Type: 'AWS::SES::ReceiptRuleSet'
+    Properties:
+      RuleSetName: new-rule-set
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: fd218ee2-0fe0-4ceb-b3bb-30cd7bd2b164
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    DependsOn:
+      - LambdaFunction
+      - LambdaS3Permission
+    Properties:
+      BucketName: s1emailbucketlab3
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: 's3:ObjectCreated:Put'
+            Function: !GetAtt 
+              - LambdaFunction
+              - Arn
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 4d40be37-0d65-4f15-97ec-c3a0f83fcae5
+  SampleBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:PutObject'
+            Effect: Allow
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref S3Bucket
+                - /*
+            Principal: '*'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 4107e2ef-085a-424d-b356-85677fe810f3
+  LambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    DependsOn:
+      - LambdaIamRole
+    Properties:
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt 
+        - LambdaIamRole
+        - Arn
+      Code:
+        S3Bucket: lambda-cf-emailbucket
+        S3Key: function.zip
+      Runtime: python3.8
+      Environment:
+        Variables:
+          ENDPOINT_NAME: !Ref EndpointName
+      Timeout: 600
+      TracingConfig:
+        Mode: Active
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: d3b9468f-282c-4366-9c3e-743f9d6e4965
+  LambdaS3Permission:
+    Type: 'AWS::Lambda::Permission'
+    DependsOn:
+      - LambdaFunction
+    Properties:
+      FunctionName: !GetAtt 
+        - LambdaFunction
+        - Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: 'arn:aws:s3:::s1emailbucketlab3'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 8be216dc-7141-49d5-ac4f-56b950a7208a
+  LambdaIamRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: lambda-role-email-spam
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AWSLambdaFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSESFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'

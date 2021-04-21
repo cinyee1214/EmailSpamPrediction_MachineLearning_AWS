@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An AWS Serverless Specification template describing your function.
+Resources:
+  spamemailprediction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.8
+      CodeUri: .
+      Description: ''
+      MemorySize: 128
+      Timeout: 300
+      Role: >-
+        arn:aws:iam::690128978051:role/service-role/spam_email_prediction-role-o3g7zvf0
+      Events:
+        BucketEvent1:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: Bucket1
+            Events:
+              - 's3:ObjectCreated:Put'
+      Layers:
+        - >-
+          arn:aws:lambda:us-east-1:668099181075:layer:AWSLambda-Python38-SciPy1x:29
+  Bucket1:
+    Type: 'AWS::S3::Bucket'
